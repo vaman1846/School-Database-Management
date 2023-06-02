@@ -1,53 +1,104 @@
 const express = require("express");
 const mysql = require("mysql2");
-
+const multer =require('multer');
 const bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json());
+const upload = multer({ dest: 'uploads/' });
 
-// const connection = mysql.createConnection({
-//   host: "localhost",
-//   user: "root",
-//   password: "",
-//   database: "new",
-// });
-// connection.connect((err) => {
-//   if (err) {
-//     console.log(`Db is not connected`);
-//   } else {
-//     console.log(`Db is connected`);
-//   }
-// });
+const connection = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "new",
+});
+connection.connect((err) => {
+  if (err) {
+    console.log(`Db is not connected`);
+  } else {
+    console.log(`Db is connected`);
+  }
+});
 
 
 
-function connectWithRetry() {
-  const connection = mysql.createConnection({
-    host: 'geecomindia.in',
-    port: 8088,
-    user: 'geecol1b',
-    password: '',
-    database: 'geecomDemo',
-    connectTimeout: 3000,
-    authPlugins: {
-      // mysql_clear_password: () => () => Buffer.from(password + '\0')
-    }
-  });
+// function connectWithRetry() {
+//   const connection = mysql.createConnection({
+//     host: 'geecomindia.in',
+//     port: 8088,
+//     user: 'geecol1b',
+//     password: '',
+//     database: 'geecomDemo',
+//     connectTimeout: 3000,
+//     authPlugins: {
+//       // mysql_clear_password: () => () => Buffer.from(password + '\0')
+//     }
+//   });
 
-  connection.connect((err) => {
+//   connection.connect((err) => {
+//     if (err) {
+//       console.error('Error connecting to the database:', err);
+//       console.log('Retrying connection...');
+//       setTimeout(connectWithRetry, 2000); // Retry after 2 seconds
+//       return;
+//     }
+//     console.log('Connected to the database');
+//   });
+// }
+
+// connectWithRetry();
+
+
+// ................to upload image ...........
+app.post('/upload', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    res.status(400).send('No file uploaded');
+    return;
+  }
+  const id = req.body;
+  const image = req.file.filename;
+
+  const sql = 'INSERT INTO images (id, image) VALUES (?, ?)';
+  connection.query(sql, [id,image], (err, result) => {
     if (err) {
-      console.error('Error connecting to the database:', err);
-      console.log('Retrying connection...');
-      setTimeout(connectWithRetry, 2000); // Retry after 2 seconds
+      console.error('Error uploading image:', err);
+      res.status(500).send('Error uploading image');
       return;
     }
-    console.log('Connected to the database');
+    console.log('Image uploaded successfully');
+    res.send('Image uploaded successfully');
   });
-}
+});
 
-connectWithRetry();
+// .......................to get image...............
 
-// students ...............
+app.get('/images/:id', (req, res) => {
+  const imageId = req.params.id;
+  const sql = 'SELECT image FROM images WHERE id = ?';
+
+  connection.query(sql, [imageId], (err, result) => {
+    if (err) {
+      console.error('Error retrieving image from the database:', err);
+      res.status(500).send('Error retrieving image from the database');
+      return;
+    }
+
+    if (result.length === 0) {
+      res.status(404).send('Image not found');
+      return;
+    }
+
+    const imagePath = __dirname + '/uploads/' + result[0].image;
+    res.setHeader('Content-Type', 'image/jpeg'); // Set the appropriate content type
+    res.sendFile(imagePath);
+  });
+});
+
+
+
+
+
+// ..................to enter students detail ...............
 
 app.post("/students", (req, res) => {
   const {
@@ -74,7 +125,7 @@ app.post("/students", (req, res) => {
   );
 });
 
-// parents................
+// ............... to enter parents detail ................
 
 app.post("/parents", (req, response) => {
   const { parent_id, father_name, mother_name, address, contact_number, student_id } = req.body;
@@ -95,7 +146,7 @@ app.post("/parents", (req, response) => {
 });
 
 
-// student parents..............
+// .............. to enter student parents ..............
 
 app.post("/student_parents", (req, res) => {
   const { student_id, parent_id } = req.body;
@@ -114,7 +165,7 @@ app.post("/student_parents", (req, res) => {
   });
 });
 
-// teacher table .....................
+//.....................to enter teacher detais .....................
 
 app.post("/teachers", (req, res) => {
   const { teacher_id, teacher_name, contact_number } = req.body;
@@ -134,7 +185,7 @@ app.post("/teachers", (req, res) => {
   );
 });
 
-// class section .........................
+// ...............to enter class section .........................
 app.post("/section", (req, res) => {
   const { section_id, section_name } = req.body;
   const query = "INSERT INTO section (section_id, section_name) VALUES (?, ?)";
@@ -150,7 +201,7 @@ app.post("/section", (req, res) => {
   });
 });
 
-// classes ....................
+//............................. classes ....................
 
 app.post("/classes", (req, res) => {
   const { class_id, class_name, teacher_id, student_id } = req.body;
@@ -170,7 +221,7 @@ app.post("/classes", (req, res) => {
   );
 });
 
-// subjects ................
+//........................... subjects ................
 
 app.post("/subjects", (req, res) => {
   const { subject_id, subject_name } = req.body;
@@ -186,7 +237,7 @@ app.post("/subjects", (req, res) => {
   });
 });
 
-// grade .......result..................
+//....................... grade .......result..................
 
 app.post("/grades", (req, res) => {
   const {
@@ -220,7 +271,7 @@ app.post("/grades", (req, res) => {
   );
 });
 
-// Fee table
+// .........................Fee table.....................
 app.post("/fees", (req, res) => {
   const {
     fee_id,
@@ -246,7 +297,7 @@ app.post("/fees", (req, res) => {
   );
 });
 
-// Attendance table................
+// ............................Attendance table................
 
 app.post("/attendance", (req, res) => {
   const {
@@ -274,7 +325,7 @@ app.post("/attendance", (req, res) => {
   );
 });
 
-// ....................................TO ENTER FEE DETAILS..................
+// ...........................TO ENTER FEE DETAILS..................
 
 app.post("/students/fees/:studentId", (req, res) => {
   const { fm_id, class_id, amount } = req.body;
@@ -294,7 +345,7 @@ app.post("/students/fees/:studentId", (req, res) => {
   });
 });
 
-// ...............................TO ENTER FEE PAYMENT DETAILS...............
+// .......................TO ENTER FEE PAYMENT DETAILS...............
 app.post("/students/fees/payment/:studentId", (req, res) => {
   const { fp_id, fm_id, studentId, amount, payment_date } = req.body;
   const query = ` INSERT INTO FEE_PAYMENT (fp_id, fm_id, student_id, amount, payment_date)
@@ -316,9 +367,9 @@ app.post("/students/fees/payment/:studentId", (req, res) => {
   );
 });
 
-//.......................................GET METHOD .........................
+//........................GET METHOD .........................
 
-// Student table................
+// .......................Student table................
 app.get("/students/:studentId", (req, res) => {
   const studentId = req.params.studentId;
 
@@ -333,7 +384,7 @@ app.get("/students/:studentId", (req, res) => {
   });
 });
 
-// student parent detail ....................
+// .....................student parent detail ....................
 
 app.get("/students/:studentId/parents", (req, res) => {
   const studentId = req.params.studentId;
@@ -355,7 +406,7 @@ app.get("/students/:studentId/parents", (req, res) => {
   });
 });
 
-// student parent name and contact details.....................
+//................... student parent name and contact details.....................
 app.get("/students/:studentId/parents/name", (req, res) => {
   const studentId = req.params.studentId;
   const query = `
@@ -375,7 +426,7 @@ app.get("/students/:studentId/parents/name", (req, res) => {
   });
 });
 
-// student class detail .............
+// .................student class detail .............
 app.get("/students/:studentId/classes", (req, res) => {
   const studentId = req.params.studentId;
   const query = `
@@ -414,7 +465,7 @@ app.get("/students/:studentId/classes", (req, res) => {
 //   });
 // });
 
-// TO FIND FEE STATUS CCORDING
+// ................TO FIND FEE STATUS CCORDING................
 app.get("/api/fee-status/:studentId", (req, res) => {
   const studentId = req.params.studentId;
 
@@ -445,7 +496,7 @@ app.get("/api/fee-status/:studentId", (req, res) => {
   });
 });
 
-//.............TO FIND REMAINING FEE ............
+//..................TO FIND REMAINING FEE .................
 
 app.get("/api/remaining-fee/:studentId", (req, res) => {
   const studentId = req.params.studentId;
@@ -476,7 +527,7 @@ app.get("/api/remaining-fee/:studentId", (req, res) => {
   });
 });
 
-// ... TO FIND PAYMENT DATE ALSO
+// ................. TO FIND PAYMENT DATE ALSO................
 app.get("/api/payment-date/:studentId", (req, res) => {
   const studentId = req.params.studentId;
   const query = `
@@ -560,7 +611,7 @@ WHERE students.student_id = ?`;
   })
 })
 
-// ..................................students attendance status ...................
+// .......................students attendance status ...................
 
 app.get('/student/attendance/:student_Id',(req,res)=>{
   const student_Id = req.params.student_Id;
@@ -581,7 +632,7 @@ connection.query(query,[student_Id],(err,result)=>{
 
  
 
-//   ........................... attendance for class wise result ....................
+//   .................... attendance for class wise result ....................
 
 app.get(  '/student/attendance/report/class/:student_Id',(req,res)=>{
   const student_Id = req.params.student_Id;
@@ -604,7 +655,7 @@ app.get(  '/student/attendance/report/class/:student_Id',(req,res)=>{
 
 
 
-// .................... student attendance details . ........
+// .................. student attendance details . ........
 
 app.get('/student/attendance/:student_Id',(req,res)=>{
   const student_Id = req.params.student_Id;
@@ -626,7 +677,7 @@ app.get('/student/attendance/:student_Id',(req,res)=>{
 
 
 
-// to count ........................student present day and absent day
+// .....to count ..........student present day and absent day
 
 app.get('/student/attendance/count/:student_Id',(req,res)=>{
   const student_Id = req.params.student_Id;
